@@ -1,0 +1,30 @@
+reset ospf 1 process重启ospf进程
+system-view
+sysname R1
+
+ospf 1 router-id 1.1.1.1
+ area 0
+  network 192.168.10.0 0.0.0.255
+  network 12.1.1.0 0.0.0.255
+  quit
+ quit
+
+system-view
+sysname R2
+
+ospf 1 router-id 2.2.2.2
+ area 0
+  network 12.1.1.0 0.0.0.255
+  network 23.1.1.0 0.0.0.255
+  quit
+ quit
+
+system-view
+sysname R3
+
+ospf 1 router-id 3.3.3.3
+ area 0
+  network 23.1.1.0 0.0.0.255
+  network 192.168.30.0 0.0.0.255
+  quit
+ quit

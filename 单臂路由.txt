@@ -1,0 +1,11 @@
+interface GigabitEthernet0/0/1.10
+ dot1q termination vid 10
+ ip address 192.168.10.254 255.255.255.0
+ arp broadcast enable
+ quit
+
+interface GigabitEthernet0/0/1.20
+ dot1q termination vid 20
+ ip address 192.168.20.254 255.255.255.0
+ arp broadcast enable
+ quit

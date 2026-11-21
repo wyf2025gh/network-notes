@@ -1,0 +1,38 @@
+system-view
+sysname R1
+
+interface GigabitEthernet0/0/0
+ ip address 192.168.10.254 255.255.255.0
+ quit
+
+interface GigabitEthernet0/0/1
+ ip address 12.1.1.1 255.255.255.0
+ quit
+
+ip route-static 0.0.0.0 0.0.0.0 12.1.1.2（明细：ip route-static 192.168.30.0 255.255.255.0 12.1.1.1）
+ system-view
+sysname R2
+
+interface GigabitEthernet0/0/0
+ ip address 12.1.1.2 255.255.255.0
+ quit
+
+interface GigabitEthernet0/0/1
+ ip address 23.1.1.2 255.255.255.0
+ quit
+
+ip route-static 192.168.10.0 255.255.255.0 12.1.1.1
+ip route-static 192.168.30.0 255.255.255.0 23.1.1.3
+system-view
+sysname R3
+
+interface GigabitEthernet0/0/0
+ ip address 23.1.1.3 255.255.255.0
+ quit
+
+interface GigabitEthernet0/0/1
+ ip address 192.168.30.254 255.255.255.0
+ quit
+
+ip route-static 0.0.0.0 0.0.0.0 23.1.1.2（明细：ip route-static 192.168.10.0 255.255.255.0 23.1.1.2）
+

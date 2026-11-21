@@ -1,0 +1,7 @@
+interface Vlanif 10
+ ip address 192.168.10.254 255.255.255.0
+ quit
+
+interface Vlanif 20
+ ip address 192.168.20.254 255.255.255.0
+ quit

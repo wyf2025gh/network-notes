@@ -1,0 +1,59 @@
+system-view
+sysname LSW1
+
+vlan batch 10 20 30
+
+interface GigabitEthernet0/0/1
+ description to-PC1
+ port link-type access
+ port default vlan 10
+ quit
+
+interface GigabitEthernet0/0/2
+ description to-PC2
+ port link-type access
+ port default vlan 10
+ quit
+
+interface GigabitEthernet0/0/3
+ description to-PC3
+ port link-type access
+ port default vlan 20
+ quit
+
+interface GigabitEthernet0/0/4
+ description to-PC4
+ port link-type access
+ port default vlan 30
+ quit
+
+三个 VLANIF 网关
+interface Vlanif 10
+ ip address 192.168.10.254 255.255.255.0
+ quit
+
+interface Vlanif 20
+ ip address 192.168.20.254 255.255.255.0
+ quit
+
+interface Vlanif 30
+ ip address 192.168.30.254 255.255.255.0
+ quit
+ACL 2000：服务器只对 PC1 开放
+acl number 2000
+ rule 5 deny source 192.168.10.20 0
+ rule 10 permit
+ quit
+
+interface GigabitEthernet0/0/4
+ traffic-filter outbound acl 2000
+ quit
+ACL 3000：技术部禁止访问财务部
+acl number 3000
+ rule 5 deny ip source 192.168.20.0 0.0.0.255 destination 192.168.10.0 0.0.0.255
+ rule 10 permit ip
+ quit
+
+interface GigabitEthernet0/0/3
+ traffic-filter inbound acl 3000
+ quit

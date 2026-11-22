@@ -57,3 +57,7 @@ acl number 3000
 interface GigabitEthernet0/0/3
  traffic-filter inbound acl 3000
  quit
+
+
+inbound = 包从这条线进来（PC3 发往交换机的方向）
+outbound = 包从这条线出去（交换机发往 PC3 的方向）

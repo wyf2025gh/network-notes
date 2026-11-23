@@ -1,0 +1,77 @@
+LSW1（内网核心）
+system-view
+sysname LSW1
+
+vlan batch 10 20 100
+
+interface GigabitEthernet0/0/1
+ port link-type access
+ port default vlan 10
+ quit
+
+interface GigabitEthernet0/0/2
+ port link-type access
+ port default vlan 10
+ quit
+
+interface GigabitEthernet0/0/3
+ port link-type access
+ port default vlan 20
+ quit
+
+interface GigabitEthernet0/0/24
+ port link-type access
+ port default vlan 100
+ quit
+
+interface Vlanif10
+ ip address 192.168.10.254 255.255.255.0
+ quit
+
+interface Vlanif20
+ ip address 192.168.20.254 255.255.255.0
+ quit
+
+interface Vlanif100
+ ip address 10.1.1.1 255.255.255.252
+ quit
+
+ip route-static 0.0.0.0 0.0.0.0 10.1.1.2
+
+AR1（边界，NAT 全在这）
+system-view
+sysname AR1
+
+interface GigabitEthernet0/0/0
+ ip address 10.1.1.2 255.255.255.252
+ quit
+
+interface GigabitEthernet0/0/1
+ ip address 200.1.1.1 255.255.255.252
+ quit
+
+ip route-static 192.168.10.0 255.255.255.0 10.1.1.1
+ip route-static 192.168.20.0 255.255.255.0 10.1.1.1
+ip route-static 0.0.0.0 0.0.0.0 200.1.1.2
+（前两条是回程：内网来的包，AR1 得知道怎么送回去。
+第三条是出网：所有不认识的目的地，都交给运营商的 AR2）
+acl number 2000
+ rule 5 permit source 192.168.10.0 0.0.0.255
+ quit
+
+interface GigabitEthernet0/0/1
+ nat outbound 2000
+ nat server protocol tcp global current-interface 80 inside 192.168.20.10 80
+ quit
+
+AR2（模拟运营商）
+system-view
+sysname AR2
+
+interface GigabitEthernet0/0/0
+ ip address 200.1.1.2 255.255.255.252
+ quit
+
+interface GigabitEthernet0/0/1
+ ip address 202.1.1.254 255.255.255.0
+ quit

@@ -1,0 +1,22 @@
+静态NAT
+[Huawei]int g0/0/1
+[Huawei-GigabitEthernet0/0/1]nat static global 12.1.1.2 inside 192.168.1.1
+[Huawei-GigabitEthernet0/0/1]q
+动态NAT
+[Huawei]nat address-group 1 12.1.1.2 12.1.1.10
+[Huawei]acl 2000
+[Huawei-acl-basic-2000]rule 10 permit source 192.168.1.0 0.0.0.255
+[Huawei-acl-basic-2000]q
+[Huawei]int g0/0/1
+[Huawei-GigabitEthernet0/0/1]nat outbound 2000 address-group 1 no-pat 
+NAPT（端口NAT或PAT）(基于上面的acl 2000)
+[Huawei]nat address-group 1 12.1.1.2 12.1.1.2
+[Huawei]int g0/0/1
+[Huawei-GigabitEthernet0/0/1]nat outbound 2000 address-group 1 
+Easy-IP(基于上面的acl 2000)
+[Huawei]int g0/0/1	
+[Huawei-GigabitEthernet0/0/1]nat outbound 2000
+NAT Server
+[Huawei]int g0/0/1
+[Huawei-GigabitEthernet0/0/1]nat server protocol tcp global 12.1.1.2 80 inside 1
+92.168.1.2 80

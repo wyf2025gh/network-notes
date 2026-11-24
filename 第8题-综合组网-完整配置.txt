@@ -1,0 +1,325 @@
+================================================================
+  第 8 题 · L3 综合组网 —— 完整配置参考
+  华为 eNSP  |  5 台网络设备 + 6 台终端
+  整理日期：2026-11-24
+================================================================
+
+【一、拓扑速览】
+
+        PC1  PC2                    PC3  PC4
+          \  /                        \  /
+          LSW2                        LSW3
+            \                          /
+             +-------- LSW1 ----------+
+                          |
+                    +-----+------+
+                    |            |
+                 Server1        AR1 ---- AR2 ---- PC5
+                              (NAT)  (200.1.1.0/30)  (202.1.1.0/24)
+
+  端口连接表
+  ------------------------------------------------------------
+  LSW1 GE0/0/1  -> LSW2 GE0/0/24    Trunk，放行 VLAN 10
+  LSW1 GE0/0/2  -> LSW3 GE0/0/24    Trunk，放行 VLAN 20 30
+  LSW1 GE0/0/3  -> Server1          Access，VLAN 40
+  LSW1 GE0/0/24 -> AR1 GE0/0/0      Access，VLAN 100   ★ 不能配 Trunk
+  LSW2 GE0/0/1  -> PC1              Access，VLAN 10
+  LSW2 GE0/0/2  -> PC2              Access，VLAN 10
+  LSW3 GE0/0/1  -> PC3              Access，VLAN 20
+  LSW3 GE0/0/2  -> PC4              Access，VLAN 30
+  AR1  GE0/0/1  -> AR2 GE0/0/0      200.1.1.0/30
+  AR2  GE0/0/1  -> PC5              202.1.1.0/24
+
+【二、地址规划】
+
+  ------------------------------------------------------------
+  位置            网段                  网关 / 接口地址
+  ------------------------------------------------------------
+  VLAN 10 办公    192.168.10.0/24       192.168.10.254
+  VLAN 20 技术    192.168.20.0/24       192.168.20.254
+  VLAN 30 财务    192.168.30.0/24       192.168.30.254
+  VLAN 40 服务器  192.168.40.0/24       192.168.40.254
+  VLAN 100 互联   10.1.1.0/30           LSW1 .1 / AR1 .2
+  出口互联        200.1.1.0/30           AR1 .1 / AR2 .2
+  模拟外网        202.1.1.0/24           AR2 .1
+  ------------------------------------------------------------
+
+【三、终端配置】
+
+  eNSP 中双击终端，在「基础配置」页填写后务必点【应用】。
+
+  ------------------------------------------------------------
+  设备      IP 地址          子网掩码          网关
+  ------------------------------------------------------------
+  PC1       192.168.10.10    255.255.255.0     192.168.10.254
+  PC2       192.168.10.20    255.255.255.0     192.168.10.254
+  PC3       192.168.20.30    255.255.255.0     192.168.20.254
+  PC4       192.168.30.40    255.255.255.0     192.168.30.254
+  PC5       202.1.1.100      255.255.255.0     202.1.1.1
+  Server1   192.168.40.10    255.255.255.0     192.168.40.254
+  ------------------------------------------------------------
+
+================================================================
+  四、设备配置（自上而下逐台粘贴）
+================================================================
+
+----------------------------------------------------------------
+  LSW1  —— 核心交换机（S5700），三层网关 + 流策略
+----------------------------------------------------------------
+system-view
+sysname LSW1
+vlan batch 10 20 30 40 100
+
+acl 2000
+ rule 5 deny source 192.168.30.0 0.0.0.255
+quit
+
+interface GigabitEthernet0/0/1
+ port link-type trunk
+ port trunk allow-pass vlan 10
+quit
+
+interface GigabitEthernet0/0/2
+ port link-type trunk
+ port trunk allow-pass vlan 20 30
+quit
+
+interface GigabitEthernet0/0/3
+ port link-type access
+ port default vlan 40
+ traffic-filter outbound acl 2000
+quit
+
+interface GigabitEthernet0/0/24
+ port link-type access
+ port default vlan 100
+quit
+
+interface Vlanif10
+ ip address 192.168.10.254 24
+quit
+
+interface Vlanif20
+ ip address 192.168.20.254 24
+quit
+
+interface Vlanif30
+ ip address 192.168.30.254 24
+quit
+
+interface Vlanif40
+ ip address 192.168.40.254 24
+quit
+
+interface Vlanif100
+ ip address 10.1.1.1 30
+quit
+
+ospf 1 router-id 1.1.1.1
+ area 0
+  network 192.168.10.0 0.0.0.255
+  network 192.168.20.0 0.0.0.255
+  network 192.168.30.0 0.0.0.255
+  network 192.168.40.0 0.0.0.255
+  network 10.1.1.0 0.0.0.3
+  quit
+quit
+
+save
+
+----------------------------------------------------------------
+  LSW2  —— 接入层（只做二层，禁止配 VLANIF）
+----------------------------------------------------------------
+system-view
+sysname LSW2
+vlan batch 10
+
+interface GigabitEthernet0/0/1
+ port link-type access
+ port default vlan 10
+quit
+
+interface GigabitEthernet0/0/2
+ port link-type access
+ port default vlan 10
+quit
+
+interface GigabitEthernet0/0/24
+ port link-type trunk
+ port trunk allow-pass vlan 10
+quit
+
+save
+
+----------------------------------------------------------------
+  LSW3  —— 接入层（只做二层，禁止配 VLANIF）
+----------------------------------------------------------------
+system-view
+sysname LSW3
+vlan batch 20 30
+
+interface GigabitEthernet0/0/1
+ port link-type access
+ port default vlan 20
+quit
+
+interface GigabitEthernet0/0/2
+ port link-type access
+ port default vlan 30
+quit
+
+interface GigabitEthernet0/0/24
+ port link-type trunk
+ port trunk allow-pass vlan 20 30
+quit
+
+save
+
+----------------------------------------------------------------
+  AR1  —— 出口路由器（默认路由 + Easy IP + NAT Server + OSPF）
+----------------------------------------------------------------
+system-view
+sysname AR1
+
+interface GigabitEthernet0/0/0
+ ip address 10.1.1.2 30
+quit
+
+interface GigabitEthernet0/0/1
+ ip address 200.1.1.1 30
+quit
+
+ip route-static 0.0.0.0 0.0.0.0 200.1.1.2
+
+acl 2000
+ rule 5 permit source 192.168.10.0 0.0.0.255
+ rule 10 permit source 192.168.20.0 0.0.0.255
+ rule 15 permit source 192.168.30.0 0.0.0.255
+ rule 20 permit source 192.168.40.0 0.0.0.255
+quit
+
+interface GigabitEthernet0/0/1
+ nat outbound 2000
+ nat server protocol tcp global current-interface 80 inside 192.168.40.10 80
+quit
+
+ospf 1 router-id 2.2.2.2
+ default-route-advertise always
+ area 0
+  network 10.1.1.0 0.0.0.3
+  quit
+quit
+
+save
+
+----------------------------------------------------------------
+  AR2  —— 模拟运营商（只有两条直连，严禁加内网路由）
+----------------------------------------------------------------
+system-view
+sysname AR2
+
+interface GigabitEthernet0/0/0
+ ip address 200.1.1.2 30
+quit
+
+interface GigabitEthernet0/0/1
+ ip address 202.1.1.1 24
+quit
+
+save
+
+================================================================
+  五、验证
+================================================================
+
+  1) 互联与邻居
+     在 LSW1 上：
+       display ip interface brief
+       display ospf peer brief
+     期望：Vlanif10/20/30/40/100 全部 up；邻居 State 为 Full。
+
+  2) 路由
+     LSW1：display ip routing-table protocol ospf
+           期望一行 0.0.0.0/0，Proto 为 O_ASE
+     AR1 ：display ip routing-table
+           期望 192.168.10/20/30/40.0/24 四条，Proto 为 O
+     AR2 ：display ip routing-table
+           期望只有 200.1.1.0/30 与 202.1.1.0/24 两条直连
+
+  3) NAT
+     LSW1：ping -a 192.168.10.254 202.1.1.100    期望 ttl=126
+           ping -a 192.168.30.254 202.1.1.100    期望 ttl=126
+           ping -a 192.168.40.254 202.1.1.100    期望 ttl=126
+     AR1 ：ping 202.1.1.100                      期望通（不经 NAT）
+     AR1 ：display nat outbound / display nat server
+
+  4) 端到端 TTL（在 PC 上点 ping）
+     ------------------------------------------------------
+     测试              期望 TTL   含义
+     ------------------------------------------------------
+     PC1 -> PC2        128        同 VLAN，纯二层
+     PC1 -> PC3        127        过 LSW1 一次三层
+     PC3 -> PC4        127        过 LSW1 一次三层
+     PC1 -> Server1    254        Server 初始 TTL 为 255
+     PC1 -> PC5        125        LSW1 + AR1 + AR2 三跳
+     PC4 -> Server1    不通       流策略拦截
+     PC4 -> PC5        125        财务照常上网
+     ------------------------------------------------------
+
+  5) 策略命中
+     LSW1：display acl 2000
+     看 rule 5 后是否有匹配计数——有计数才证明包真的撞上规则被丢弃。
+
+================================================================
+  六、踩坑对照（本人在实作中实际遇到的）
+================================================================
+
+  1) LSW1 GE0/0/24 误配 Trunk
+     现象：AR1 与 LSW1 三层不通，两端 ARP 互学不到。
+     原因：对端是路由器三层口，不识别 VLAN 标签。
+     修法：port link-type access + port default vlan 100
+
+  2) Vlanif40 地址配成 192.168.40.10（与 Server1 撞车）且状态 Down
+     现象：OSPF 邻居正常，但 AR1 学不到 40 网段。
+     原因：GE0/0/3 未划入 VLAN40 -> VLAN 内无 up 端口
+           -> Vlanif40 down -> OSPF 对 down 接口不发 LSA。
+     修法：端口划入 VLAN40 后 Vlanif 自动 up，再把地址改回 .254。
+     要点：「宣告了」不等于「生效了」，display ospf interface 看状态。
+
+  3) default-route-advertise 缺 always
+     现象：邻居正常，但 LSW1 路由表里没有 0.0.0.0/0。
+     原因：不带 always 时，只有本机已存在外部路由才发默认。
+     修法：ospf 进程下 default-route-advertise always（位置在进程视图）
+
+  4) 误把 O_ASE 当作「AR1 自己有默认路由」的证据
+     要点：always 是无条件发布，邻居收到默认路由，不能反推发布者自己会走。
+           两者要分别查：AR1 查 display ip routing-table | include 0.0.0.0
+
+  5) NAT Server 用 nat static 报地址冲突
+     原因：/30 网段除两端外无可用地址，公网地址必须是接口之外地址。
+     修法：nat server protocol tcp global current-interface 80 inside ...
+
+  6) 流策略方向搞反
+     要点：inbound/outbound 以设备自身为参照。
+           挂 GE0/0/3 想拦「进入服务器」的包，方向是 outbound。
+
+================================================================
+  七、两个设计点说明
+================================================================
+
+  1) 为什么流策略挂在 GE0/0/3 outbound 而不是 GE0/0/2 inbound
+     GE0/0/3 是通往 Server1 的唯一出口，从这个口 outbound 出去的包，
+     目的必然是 192.168.40.x。于是「源为 30 网段」+「从这个口出去」
+     事实上等价于「30 -> 40」，用一条基础 ACL 就实现了高级 ACL 的效果。
+     若挂在 GE0/0/2 inbound，无法区分「去服务器」与「去外网」，
+     会造成财务完全断网。
+
+  2) 为什么 AR2 不配内网路由
+     内网访问外网时源地址已被 AR1 转换成 200.1.1.1，AR2 全程看不到
+     192.168.x.x。回程由 AR1 的 NAT 会话表还原。
+     所以 AR2 只需要知道两条直连网段。一旦在 AR2 上配了内网路由，
+     说明设计思路偏离了本题的考察点。
+
+================================================================
+  完
+================================================================

@@ -1,22 +1,95 @@
-静态NAT
-[Huawei]int g0/0/1
-[Huawei-GigabitEthernet0/0/1]nat static global 12.1.1.2 inside 192.168.1.1
-[Huawei-GigabitEthernet0/0/1]q
-动态NAT
-[Huawei]nat address-group 1 12.1.1.2 12.1.1.10
-[Huawei]acl 2000
-[Huawei-acl-basic-2000]rule 10 permit source 192.168.1.0 0.0.0.255
-[Huawei-acl-basic-2000]q
-[Huawei]int g0/0/1
-[Huawei-GigabitEthernet0/0/1]nat outbound 2000 address-group 1 no-pat 
-NAPT（端口NAT或PAT）(基于上面的acl 2000)
-[Huawei]nat address-group 1 12.1.1.2 12.1.1.2
-[Huawei]int g0/0/1
-[Huawei-GigabitEthernet0/0/1]nat outbound 2000 address-group 1 
-Easy-IP(基于上面的acl 2000)
-[Huawei]int g0/0/1	
-[Huawei-GigabitEthernet0/0/1]nat outbound 2000
-NAT Server
-[Huawei]int g0/0/1
-[Huawei-GigabitEthernet0/0/1]nat server protocol tcp global 12.1.1.2 80 inside 1
-92.168.1.2 80
+================================================================
+  NAT 地址转换 · 命令速查
+  更新：2026-11-24
+================================================================
+
+五种 NAT 的区别只有一句话：公网地址从哪来、要不要转换端口。
+
+全部挂在内网出接口（如 GE0/0/1）上，先用 ACL 圈定"谁的地址要转换"。
+
+----------------------------------------------------------------
+  一、静态 NAT —— 一对一，内外地址永久绑定
+----------------------------------------------------------------
+[Huawei] interface GigabitEthernet0/0/1
+[Huawei-GigabitEthernet0/0/1] nat static global 12.1.1.2 inside 192.168.1.1
+[Huawei-GigabitEthernet0/0/1] quit
+
+适用：内网有台设备需要一个固定的公网地址。
+注意：公网地址必须是接口之外的地址，不能与接口 IP 冲突。
+      /30 这种只有两个可用地址的网段放不下静态 NAT（第 7 题踩过）。
+
+----------------------------------------------------------------
+  二、动态 NAT —— 多对多，从地址池里分，不转换端口
+----------------------------------------------------------------
+[Huawei] nat address-group 1 12.1.1.2 12.1.1.10
+[Huawei] acl 2000
+[Huawei-acl-basic-2000] rule 10 permit source 192.168.1.0 0.0.0.255
+[Huawei-acl-basic-2000] quit
+[Huawei] interface GigabitEthernet0/0/1
+[Huawei-GigabitEthernet0/0/1] nat outbound 2000 address-group 1 no-pat
+
+关键在 no-pat：不做端口转换，一个内网地址独占一个公网地址。
+     地址池分完就没了，后面的主机排不上队。
+
+----------------------------------------------------------------
+  三、NAPT —— 端口 NAT，共用地址池并转换端口
+----------------------------------------------------------------
+[Huawei] nat address-group 1 12.1.1.2 12.1.1.2
+[Huawei] interface GigabitEthernet0/0/1
+[Huawei-GigabitEthernet0/0/1] nat outbound 2000 address-group 1
+
+去掉 no-pat 就是 NAPT。地址池里一个公网地址可被多台内网主机共用，
+     靠端口号区分不同会话。
+
+----------------------------------------------------------------
+  四、Easy-IP —— 直接用出接口地址做 NAT，不建地址池
+----------------------------------------------------------------
+[Huawei] interface GigabitEthernet0/0/1
+[Huawei-GigabitEthernet0/0/1] nat outbound 2000
+
+最省事：公网地址就用出接口自己的 IP，端口复用。
+     拨号接入、单出口场景的标准写法，第 7、8 题用的都是这个。
+
+----------------------------------------------------------------
+  五、NAT Server —— 端口映射，让外网主动访问内网服务
+----------------------------------------------------------------
+[Huawei] interface GigabitEthernet0/0/1
+[Huawei-GigabitEthernet0/0/1] nat server protocol tcp global current-interface 80 inside 192.168.1.2 80
+
+让外网通过公网地址的某个端口，访问内网服务器的对应端口。
+     eNSP 坑：global 后面写具体公网 IP 会报"地址冲突"，
+              必须用 current-interface 指向接口地址。
+
+================================================================
+  六、选型对照
+================================================================
+
+  需求                              用哪个
+  ----------------------------------------------------------
+  内外地址固定绑定                  静态 NAT
+  地址池分配、不转换端口            动态 NAT（加 no-pat）
+  地址池分配、要转换端口            NAPT
+  只有一个公网地址、所有人共用      Easy-IP
+  外网要访问内网服务器              NAT Server
+
+================================================================
+  七、排错要点（第 7、8 题实战总结）
+================================================================
+
+  1) ACL 漏网段
+     现象：有的网段能上网，有的不能；ping 报超时而不是 unreachable。
+     原因：ACL 不匹配等于"不转换"，不是"丢弃"。包带着私有源地址
+           出去，在公网被丢，回不来。
+     查法：display acl 2000，数规则条数够不够覆盖所有内网网段。
+
+  2) 回程路由缺失
+     NAT 只改地址，不管路由。转换后的包回来，要能找到回内网的路。
+     所以 AR1 上必须有回内网各网段的路由（静态写，或由 OSPF 学来）。
+
+  3) 会话表
+     display nat session all   ← eNSP 里经常是空的，别指望它。
+     实际验证靠 LSW1 上 ping -a 指定源地址，再看 TTL 对不对。
+
+  4) 方向
+     nat outbound 挂在"内网进、公网出"的那个接口上。
+     挂反了不生效，而且不会报错，只能靠现象判断。

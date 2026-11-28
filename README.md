@@ -50,6 +50,7 @@ git push
 | 10 | BGP 基础（eBGP / iBGP） | ✅ | `第11题-BGP基础-完整配置.txt` |
 | 11 | BGP 选路（Local_Pref / MED） | ✅ | `第12题-BGP选路-完整配置.txt` |
 | 12 | BGP 路由反射器（RR） | ✅ | `第13题-路由反射器-完整配置.txt` |
+| 13 | BGP 路由过滤与 Community | ✅ | `第14题-BGP过滤与社区-完整配置.txt` |
 | 99 | 综合组网 | ✅ | `第8题-综合组网-完整配置.txt` |
 
 `⬜` 没写　`🟨` 在写　`✅` 写完
@@ -81,6 +82,7 @@ git push
 | `第11题-BGP基础-完整配置.txt` | 第 11 题两 AS 四路由：eBGP/iBGP、`network` 正掩码、`next-hop-local` 修下一跳、三视角看 AS_PATH、五项验证 + 六条踩坑 |
 | `第12题-BGP选路-完整配置.txt` | 第 12 题四路由双出口：OSPF 保证环回可达、`route-policy` 设 `Local_Pref` 与 MED、BGP 九层选路顺序、断链回切、八条踩坑（含策略名写错静默失效） |
 | `第13题-路由反射器-完整配置.txt` | 第 13 题同一拓扑做减法：3 条 iBGP 减成 2 条、`reflect-client`、Originator / Cluster list 双字段、假通过鉴别、恢复后的连锁反应、八条踩坑 |
+| `第14题-BGP过滤与社区-完整配置.txt` | 第 14 题链式三 AS：`filter-policy` / `community no-export` / `as-path-filter` / `peer x route-policy` 四种过滤手段全对比、可见性矩阵、三处过滤各由谁实现、十条踩坑（含"过滤对象选错"与"策略名写成前缀列表名"） |
 
 这些是练手时直接敲的命令，原样保留。等想明白了再整理进上面的理论笔记里。
 
@@ -104,7 +106,8 @@ E:\网络命令\
 ├── 第10题-IS-IS双区域-完整配置.txt
 ├── 第11题-BGP基础-完整配置.txt
 ├── 第12题-BGP选路-完整配置.txt
-└── 第13题-路由反射器-完整配置.txt
+├── 第13题-路由反射器-完整配置.txt
+└── 第14题-BGP过滤与社区-完整配置.txt
 
 规划中、尚未创建：
 ├── 01-IP编址与子网划分.md 等理论笔记  ← 从上面的草稿整理而来
@@ -125,3 +128,4 @@ E:\网络命令\
 - 2026-11-26　加入第 11 题 BGP 基础完整配置（eBGP/iBGP + next-hop-local 修下一跳 + AS_PATH 三视角）；BGP 主题标记为完成
 - 2026-11-28　加入第 12 题 BGP 选路完整配置（OSPF 保环回可达 + Local_Pref/MED 双策略 + 九层选路顺序 + 断链回切）；理论主线新增「BGP 选路」一行
 - 2026-11-28　加入第 13 题路由反射器完整配置（3 条 iBGP 减成 2 条 + reflect-client + Originator/Cluster list + 假通过鉴别）；理论主线新增「BGP 路由反射器」一行
+- 2026-11-28　加入第 14 题 BGP 过滤与 Community 完整配置（四种过滤手段对照 + 逐网段可见性矩阵 + 策略名写错静默失效 + 过滤对象选错两处新坑）；理论主线新增「BGP 路由过滤与 Community」一行
